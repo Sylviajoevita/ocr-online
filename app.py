@@ -14,45 +14,111 @@ HTML_PAGE = """
 <html>
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OCR Studio - Fixed</title>
+<title>OCR Studio - With Preview</title>
 <style>
 *{box-sizing:border-box;font-family:Inter,sans-serif}
-body{margin:0;background:#f8f9ff;padding:20px}
-.card{max-width:700px;margin:auto;background:white;border-radius:16px;padding:25px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
-.drop{border:2px dashed #7c5cfc;border-radius:12px;padding:40px;text-align:center;background:#faf8ff;cursor:pointer}
-.btn{width:100%;padding:14px;background:#111;color:#fff;border:none;border-radius:10px;margin-top:12px;cursor:pointer;font-weight:600}
-.log{background:#111;color:#0f0;padding:10px;border-radius:8px;margin-top:12px;font-family:monospace;font-size:13px}
+body{margin:0;background:#f8f9ff;padding:15px}
+.card{max-width:750px;margin:auto;background:white;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.07)}
+h2{margin:0 0 15px}
+.drop{border:2px dashed #7c5cfc;border-radius:12px;padding:35px;text-align:center;background:#faf8ff;cursor:pointer;transition:.2s}
+.drop:hover{background:#f3f0ff}
+.preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;margin-top:18px}
+.item{border:1px solid #e9e9e9;border-radius:10px;overflow:hidden;background:#fff;position:relative}
+.item img{width:100%;height:100px;object-fit:cover;display:block}
+.item span{display:block;padding:6px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#f9f9f9}
+.item button{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.7);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px}
+.btn{width:100%;padding:14px;background:#111;color:#fff;border:none;border-radius:10px;margin-top:14px;cursor:pointer;font-weight:700;font-size:15px;display:none}
+.btn.show{display:block}
+.btn:disabled{background:#999;cursor:not-allowed}
+.log{background:#111;color:#0f0;padding:10px;border-radius:8px;margin-top:12px;font-family:monospace;font-size:13px;white-space:pre-wrap}
 </style>
 </head>
 <body>
 <div class="card">
-<h2>OCR Studio - File Name in Row 1</h2>
-<div class="drop" onclick="document.getElementById('images').click()">
-Click to select images<br><small>Multiple images allowed</small>
+<h2>OCR Studio</h2>
+<div class="drop" id="dropZone" onclick="document.getElementById('images').click()">
+<strong>Click to select images</strong><br><small>or drag & drop here - Multiple allowed</small>
 <input type="file" id="images" multiple hidden accept="image/*">
 </div>
-<button class="btn" onclick="upload()">Process & Download Excel</button>
-<div id="log" class="log">Ready - Select images</div>
+
+<div id="preview" class="preview"></div>
+
+<button class="btn" id="processBtn" onclick="upload()">Process & Download Excel</button>
+<div id="log" class="log">Ready - Select images to preview</div>
 </div>
+
 <script>
+const input = document.getElementById('images');
+const preview = document.getElementById('preview');
+const btn = document.getElementById('processBtn');
+const log = document.getElementById('log');
+const dropZone = document.getElementById('dropZone');
+let selectedFiles = [];
+
+input.addEventListener('change', handleFiles);
+dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.style.background='#ece6ff'; });
+dropZone.addEventListener('dragleave', ()=>{ dropZone.style.background='#faf8ff'; });
+dropZone.addEventListener('drop', e=>{
+ e.preventDefault();
+ dropZone.style.background='#faf8ff';
+ handleFiles({target:{files:e.dataTransfer.files}});
+});
+
+function handleFiles(e){
+ const newFiles = Array.from(e.target.files);
+ selectedFiles = selectedFiles.concat(newFiles);
+ renderPreview();
+}
+
+function renderPreview(){
+ preview.innerHTML='';
+ if(selectedFiles.length===0){
+   btn.classList.remove('show');
+   log.textContent='Ready - Select images to preview';
+   return;
+ }
+ selectedFiles.forEach((file, index)=>{
+   const div=document.createElement('div');
+   div.className='item';
+   const img=document.createElement('img');
+   img.src=URL.createObjectURL(file);
+   const name=document.createElement('span');
+   name.textContent=file.name;
+   const rm=document.createElement('button');
+   rm.textContent='x';
+   rm.onclick=()=>{ selectedFiles.splice(index,1); renderPreview(); };
+   div.appendChild(img); div.appendChild(name); div.appendChild(rm);
+   preview.appendChild(div);
+ });
+ btn.classList.add('show');
+ btn.textContent=`Process ${selectedFiles.length} Image(s) & Download Excel`;
+ log.textContent=`${selectedFiles.length} image(s) selected - Preview above - Click Process to download`;
+}
+
 async function upload(){
- const files=document.getElementById('images').files;
- if(!files.length) return alert('Select images first');
- const log=document.getElementById('log');
- log.textContent='Uploading '+files.length+' files to server... Please wait';
+ if(selectedFiles.length===0) return;
+ btn.disabled=true;
+ btn.textContent='Processing... Please wait';
+ log.textContent='Uploading '+selectedFiles.length+' files to server... OCR running...';
+
  const fd=new FormData();
- for(let f of files) fd.append('images', f);
+ selectedFiles.forEach(f=>fd.append('images', f));
+
  try{
   const res=await fetch('/ocr',{method:'POST',body:fd});
-  if(!res.ok) throw new Error('Server error');
+  if(!res.ok) throw new Error('Server error '+res.status);
   const blob=await res.blob();
   const url=window.URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url; a.download='extracted_sheets.xlsx';
   document.body.appendChild(a); a.click(); a.remove();
-  log.textContent='Success! Excel downloaded - Open it in Excel/Sheets';
+  log.textContent='Success! '+selectedFiles.length+' images processed - Excel downloaded';
+  btn.textContent='Downloaded! Process again?';
  }catch(e){
   log.textContent='Error: '+e.message;
+  btn.textContent='Try Again';
+ }finally{
+  btn.disabled=false;
  }
 }
 </script>
