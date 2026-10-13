@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, render_template_string, send_from_directory
+from flask import Flask, request, send_file, render_template_string
 from flask_cors import CORS
 from PIL import Image
 import pytesseract
@@ -15,7 +15,7 @@ HTML_PAGE = """
 <html>
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OCR Studio</title>
+<title>OCR Studio - Glass</title>
 <style>
 *{box-sizing:border-box;font-family:Inter,system-ui,sans-serif}
 body{
@@ -25,75 +25,94 @@ body{
   align-items:center;
   justify-content:center;
   padding:20px;
-  /* Background image from your upload */
   background-image: url('/background.jpg');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
-  background-color: #6a7cff;
+  background-color: #7a8cff;
 }
 .card{
   width:100%;
   max-width:680px;
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius:20px;
-  padding:28px;
-  box-shadow:0 20px 60px rgba(0,0,0,.25);
-  border:1px solid rgba(255,255,255,.6);
+  background: rgba(255,255,255,0.25);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius:24px;
+  padding:32px;
+  box-shadow: 0 8px 32px rgba(31,38,135,.2), inset 0 0 0 1px rgba(255,255,255,.4);
+  border:1px solid rgba(255,255,255,.5);
 }
-h2{margin:0 0 8px;text-align:center}
-.sub{text-align:center;color:#666;font-size:13px;margin-bottom:18px}
-.drop{border:2px dashed #7c5cfc;border-radius:14px;padding:36px;text-align:center;background:rgba(250,248,255,.9);cursor:pointer;transition:.2s}
-.drop:hover{background:#fff;border-color:#5a3de8}
+h2{margin:0 0 8px;text-align:center;color:#111;text-shadow:0 1px 0 rgba(255,255,255,.8);font-size:26px;letter-spacing:-.5px}
+.sub{text-align:center;color:rgba(0,0,0,.65);font-size:13px;margin-bottom:20px;font-weight:500}
+.drop{
+  border:1.5px dashed rgba(255,255,255,.8);
+  border-radius:16px;
+  padding:40px;
+  text-align:center;
+  background: rgba(255,255,255,.35);
+  cursor:pointer;
+  transition:.25s;
+  color:#111;
+  font-weight:600;
+}
+.drop:hover{background: rgba(255,255,255,.55); border-color:#fff; transform: translateY(-1px);}
+.drop small{font-weight:400; opacity:.7}
 .preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;margin-top:18px}
-.item{border:1px solid #e9e9e9;border-radius:10px;overflow:hidden;background:#fff;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.item{border-radius:12px;overflow:hidden;background:rgba(255,255,255,.85);position:relative;box-shadow:0 4px 12px rgba(0,0,0,.1);border:1px solid rgba(255,255,255,.6)}
 .item img{width:100%;height:100px;object-fit:cover;display:block}
-.item span{display:block;padding:6px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#f9f9f9}
-.item button{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.75);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer}
-.btn{width:100%;padding:15px;background:#111;color:#fff;border:none;border-radius:12px;margin-top:16px;cursor:pointer;font-weight:700;font-size:15px;display:none}
+.item span{display:block;padding:6px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(255,255,255,.9)}
+.item button{position:absolute;top:5px;right:5px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;backdrop-filter:blur(4px)}
+.btn{
+  width:100%;padding:16px;background:rgba(17,17,17,.9);color:#fff;border:1px solid rgba(255,255,255,.2);
+  border-radius:14px;margin-top:18px;cursor:pointer;font-weight:700;font-size:15px;display:none;
+  backdrop-filter:blur(10px); box-shadow:0 8px 20px rgba(0,0,0,.2); transition:.2s
+}
 .btn.show{display:block}
-.btn:disabled{background:#888}
-.log{background:#111;color:#0f0;padding:10px;border-radius:8px;margin-top:12px;font-family:monospace;font-size:12px;white-space:pre-wrap}
+.btn:hover{transform:translateY(-1px); background:#000; box-shadow:0 12px 28px rgba(0,0,0,.3)}
+.btn:disabled{background:rgba(100,100,100,.6)}
+.log{
+  background:rgba(17,17,17,.85);color:#7CFF7C;padding:12px;border-radius:10px;margin-top:14px;
+  font-family:monospace;font-size:12px;white-space:pre-wrap; border:1px solid rgba(255,255,255,.15);
+  backdrop-filter:blur(8px)
+}
 </style>
 </head>
 <body>
 <div class="card">
 <h2>OCR Studio</h2>
-<div class="sub">File name will be in Row 1 • Text extracted exactly as in image</div>
+<div class="sub">File name in Row 1 • Preview then Download</div>
 <div class="drop" id="dropZone" onclick="document.getElementById('images').click()">
-<strong>Click to select images</strong><br><small>or drag & drop here</small>
+<strong>✨ Click to select images</strong><br><small>or drag & drop here — multiple allowed</small>
 <input type="file" id="images" multiple hidden accept="image/*">
 </div>
 <div id="preview" class="preview"></div>
 <button class="btn" id="processBtn" onclick="upload()">Process & Download Excel</button>
-<div id="log" class="log">Ready - Select images to preview</div>
+<div id="log" class="log">Ready — Select images</div>
 </div>
 <script>
 const input=document.getElementById('images'), preview=document.getElementById('preview'), btn=document.getElementById('processBtn'), log=document.getElementById('log'), dropZone=document.getElementById('dropZone');
 let selectedFiles=[];
 input.addEventListener('change', e=>{ handleFiles(e.target.files); });
-dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.style.background='#fff'; });
-dropZone.addEventListener('dragleave', ()=>{ dropZone.style.background='rgba(250,248,255,.9)'; });
-dropZone.addEventListener('drop', e=>{ e.preventDefault(); dropZone.style.background='rgba(250,248,255,.9)'; handleFiles(e.dataTransfer.files); });
+dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.style.background='rgba(255,255,255,.65)'; });
+dropZone.addEventListener('dragleave', ()=>{ dropZone.style.background='rgba(255,255,255,.35)'; });
+dropZone.addEventListener('drop', e=>{ e.preventDefault(); dropZone.style.background='rgba(255,255,255,.35)'; handleFiles(e.dataTransfer.files); });
 function handleFiles(files){ selectedFiles=selectedFiles.concat(Array.from(files)); renderPreview(); }
 function renderPreview(){
  preview.innerHTML='';
- if(selectedFiles.length===0){ btn.classList.remove('show'); log.textContent='Ready - Select images to preview'; return; }
+ if(selectedFiles.length===0){ btn.classList.remove('show'); log.textContent='Ready — Select images'; return; }
  selectedFiles.forEach((file,i)=>{
    const div=document.createElement('div'); div.className='item';
    const img=document.createElement('img'); img.src=URL.createObjectURL(file);
    const name=document.createElement('span'); name.textContent=file.name;
-   const rm=document.createElement('button'); rm.textContent='x'; rm.onclick=()=>{ selectedFiles.splice(i,1); renderPreview(); };
+   const rm=document.createElement('button'); rm.textContent='×'; rm.onclick=()=>{ selectedFiles.splice(i,1); renderPreview(); };
    div.appendChild(img); div.appendChild(name); div.appendChild(rm); preview.appendChild(div);
  });
- btn.classList.add('show'); btn.textContent=`Process ${selectedFiles.length} Image(s) & Download Excel`;
- log.textContent=`${selectedFiles.length} image(s) ready - Preview above - Click Process`;
+ btn.classList.add('show'); btn.textContent=`Process ${selectedFiles.length} Image(s) & Download`;
+ log.textContent=`${selectedFiles.length} image(s) ready — See preview above`;
 }
 async function upload(){
- if(selectedFiles.length===0) return; btn.disabled=true; btn.textContent='Processing...';
- log.textContent='OCR running on server...';
+ if(selectedFiles.length===0) return; btn.disabled=true; btn.textContent='Processing... ✨';
+ log.textContent='OCR running...';
  const fd=new FormData(); selectedFiles.forEach(f=>fd.append('images', f));
  try{
   const res=await fetch('/ocr',{method:'POST',body:fd});
@@ -101,8 +120,8 @@ async function upload(){
   const blob=await res.blob(); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='extracted_sheets.xlsx';
   document.body.appendChild(a); a.click(); a.remove();
-  log.textContent='Success! Excel downloaded';
-  btn.textContent='Downloaded! Process again?';
+  log.textContent='Success! Excel downloaded — Check your Downloads';
+  btn.textContent='✅ Downloaded! Process again?';
  }catch(e){ log.textContent='Error: '+e.message; btn.textContent='Try Again'; }
  finally{ btn.disabled=false; }
 }
@@ -117,10 +136,8 @@ def home():
 
 @app.route('/background.jpg')
 def background():
-    # Serves the background image you uploaded to GitHub
     if os.path.exists("background.jpg"):
         return send_file("background.jpg", mimetype="image/jpeg")
-    # fallback if not uploaded yet - return 404 so CSS shows solid color
     return "", 404
 
 @app.route('/ocr', methods=['POST'])
@@ -137,10 +154,8 @@ def ocr():
             text = pytesseract.image_to_string(img, lang='eng', config='--oem 3 --psm 6')
         except Exception as e:
             text = f"OCR Error: {str(e)}"
-        # Row 1 = File Name
         ws['A1'] = f.filename
         ws['A1'].font = Font(bold=True, size=12, color="0000FF")
-        # Row 3 onwards = text as in image
         row_num = 3
         for line in text.splitlines():
             cleaned = line.strip()
@@ -156,5 +171,5 @@ def ocr():
     return send_file(output, as_attachment=True, download_name="extracted_sheets.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5003))
     app.run(host='0.0.0.0', port=port)
