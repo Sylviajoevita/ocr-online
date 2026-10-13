@@ -15,7 +15,9 @@ HTML_PAGE = """
 <html>
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OCR Studio </title>
+<title>OCR Studio</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">
 <style>
 *{box-sizing:border-box;font-family:Inter,system-ui,sans-serif}
 body{
@@ -133,6 +135,12 @@ async function upload(){
 @app.route('/')
 def home():
     return render_template_string(HTML_PAGE)
+
+@app.route('/favicon.ico')
+def favicon():
+    if os.path.exists("favicon.ico"):
+        return send_file("favicon.ico", mimetype="image/x-icon")
+    return "", 404
 
 @app.route('/background.jpg')
 def background():
