@@ -15,7 +15,7 @@ HTML_PAGE = """
 <html>
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OCR Studio - Glass</title>
+<title>OCR Studio </title>
 <style>
 *{box-sizing:border-box;font-family:Inter,system-ui,sans-serif}
 body{
