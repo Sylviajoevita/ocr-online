@@ -1,5 +1,6 @@
-flask
+Flask
 flask-cors
-pillow
+Pillow
 pytesseract
+openpyxl
 gunicorn
