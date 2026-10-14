@@ -3,4 +3,4 @@ flask-cors
 Pillow
 pytesseract
 openpyxl
-gunicorn
+PyMuPDF
