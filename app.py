@@ -8,6 +8,7 @@ from openpyxl.styles import Font
 import os
 
 app = Flask(__name__)
+
 CORS(app)
 
 HTML_PAGE = """
